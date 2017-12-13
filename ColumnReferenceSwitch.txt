@@ -1,0 +1,13 @@
+Public Function ColumnReferenceSwitch(Optional ColumnNumber As Long, Optional ColumnLetter As String) As String
+If Not IsNull(ColumnNumber) And Not IsNull (ColumnLetter) Then
+Debug.Print "ColumnReferenceSwitch ABORTED : Must supply one variable only!"
+End If
+If Not IsNull(ColumnNumber) Then
+	Dim vArr
+	vArr = Split(Cells(1, ColumnNumber).Address(True, False), "$")
+	ColumnReferenceSwitch = vArr(0)
+	End Function
+ElseIf Not IsNull(ColumnLetter) Then
+	ColumnReferenceSwitch = ActiveSheet.Range(ColumnLetter & "1").Column
+End If
+End Function

@@ -1,0 +1,868 @@
+'----------------------------------------------------------------------------------------------------------------------------------------------
+' EDITION POINT
+'----------------------------------------------------------------------------------------------------------------------------------------------
+    
+ 'Setting first headers for upcoming formulas
+    wsCopyTo.Range("A8").Value = "Entité"
+    wsCopyTo.Range("B8").Value = "Match Tableau"
+    wsCopyTo.Range("C8").Value = "# Groupe"
+    wsCopyTo.Range("D8").Value = "Mastercard?"
+      
+'Setting sheet title
+    wsCopyTo.Range("A3").Value = "CANASSURANCE COMPAGNIE D'ASSURANCE"
+    wsCopyTo.Range("A4").Value = "Détail des réclamations payées"
+    wsCopyTo.Range("A5").Value = "Système : UniVers"
+
+' Set pasted data in variables in order to paste formulas in the next step.
+
+    wsCopyTo.Activate
+    Range("E8").Select
+    Selection.End(xlDown).Select
+    vLastRow = Selection.Address
+    vLastRowNum = Selection.Row
+    
+    
+    Range("A1").Select
+     
+    wsCopyTo.Activate
+    Range("E8").Select
+    Selection.End(xlToRight).Select
+    vLastColumn = Selection.Address
+    
+    
+    Range("A1").Select
+        
+    Range("E8").Select
+    Range("E8", Selection.End(xlDown)).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows - 1, numColumns).Select
+    vFirstPastedColumn = Selection.Address
+    
+    Range("A1").Select
+      
+    Range("A8").Select
+    Range("A8", Selection.End(xlToRight)).Select
+    vFirstPastedRow = Selection.Address
+
+    'Copy Date from Report (not data!, date!)
+    wsCopyFrom.Range("A6").Copy
+    wsCopyTo.Range("E6").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+                Application.CutCopyMode = False
+             
+'Paste matching formulas ahead of the pasted data.
+    wsCopyTo.Activate
+    
+    'Formula entry for entity match - COLUMN A
+    Range(vFirstPastedColumn).Offset(1, -4).FormulaR1C1 = _
+            "=IFERROR(VLOOKUP(R[0]C[2],MAPPING_GROUPES,4,FALSE),IF(LEN(R[0]C[5])=6,(VLOOKUP(VALUE(LEFT(R[0]C[5],1))*100000,MAPPING_GROUPES,4,FALSE)),NA()))"
+    
+    Range(vFirstPastedColumn).Offset(1, -4).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+       
+    'Formula entry for aggregate sheet match - COLUMN B
+    Range(vFirstPastedColumn).Offset(1, -3).FormulaR1C1 = _
+        "=IFERROR(VLOOKUP(R[0]C[1],MAPPING_GROUPES,3,FALSE),IF(LEN(R[0]C[4])=6,(VLOOKUP(VALUE(LEFT(R[0]C[4],1))*100000,MAPPING_GROUPES,3,FALSE)),NA()))"
+    Range(vFirstPastedColumn).Offset(1, -3).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+    
+    'Formula entry for getting group numbers as a number formatted value (prevents issues with edited cell format after import
+    '(Number as text is often wrongly converted to number when edited by Excel or the user) - COLUMN C
+    Range(vFirstPastedColumn).Offset(1, -2).FormulaR1C1 = _
+    "=IF(VALUE(LEFT(R[0]C[2],2))=85,IF(VALUE(LEFT(R[0]C[3],1))=2,""Collectif QC"",IF(VALUE(LEFT(R[0]C[3],1))>2,""Collectif ON"",""Groupe Collectif Inconnu, " & _
+        "Modifiez formule Colonne C"")),VALUE(R[0]C[2]))"
+    
+    Range(vFirstPastedColumn).Offset(1, -2).Select
+    With Selection
+        .HorizontalAlignment = xlRight
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+        .NumberFormat = "0"
+    End With
+    
+     
+    'Formula entry for Mastercard contract check - COLUMN D
+     Range(vFirstPastedColumn).Offset(1, -1).FormulaR1C1 = "=IF(AND(LEN(R[0]C[3])=16,LEFT(R[0]C[3],4)=""5258""),TRUE,FALSE)"
+    Range(vFirstPastedColumn).Offset(1, -1).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+
+
+'Setting headers for formulas because they have been overwritten by the macro
+    wsCopyTo.Range("A8").Value = "Entité"
+    wsCopyTo.Range("B8").Value = "Match Tableau"
+    wsCopyTo.Range("C8").Value = "# Groupe"
+    wsCopyTo.Range("D8").Value = "Mastercard?"
+    Range("A8:C8").HorizontalAlignment = xlCenter
+    
+
+ 'Formatting table header before applying custom formulas and format (yellow cells, see next step)
+    Range("A8").Select
+    wsCopyTo.Range("A8", Cells(8, Range("aaa8").End(xlToLeft).Column)).Select
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .Color = 14865087
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Gras"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    
+    
+'--------------------------------------
+'Inserts custom formulas in the report for the analysis
+'Eventually, these columns could be integrated directly in the Cognos report in order to save time.
+
+'Column & Formula to map Benefits description to Benefits categories
+Worksheets("FIN-OPE-UN-0010-01").Select
+Range("J8").EntireColumn.Insert
+Range("J8").Value = "Type de garantie"
+Range("J8").Select
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+Range("J9:J" & vLastRowNum).FormulaR1C1 = "=VLOOKUP(R[0]C[-1],MAPPING_GARANTIES,2,FALSE)"
+
+Range("J9").Select
+    Range("J9:D" & vLastRowNum).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+
+'Column & Formula to calculate Void and Stop amounts in Canadian dollars
+Range("V8").EntireColumn.Insert
+Range("V8").Value = "Montant Void ou Stop ($CAD)"
+Range("V8").Select
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+Range("V9:V" & vLastRowNum).FormulaR1C1 = "=IF(R[0]C[3]=0,R[0]C[8],R[0]C[8]*R[0]C[3])"
+
+Range("V9").Select
+    Range("V9:V" & vLastRowNum).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+
+'Column & Formula to calculate Net paid amount (Amount paid - Void and Stop amounts)
+Range("W8").EntireColumn.Insert
+Range("W8").Value = "Montant net payé ($CAD)"
+Range("W8").Select
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+Range("W9:W" & vLastRowNum).FormulaR1C1 = "=R[0]C[-2]+R[0]C[-1]"
+
+Range("W9").Select
+    Range("W9:W" & vLastRowNum).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+
+'Column & Formula to find relevant bank account based on a LOOKUP formula
+Range("AG8").EntireColumn.Insert
+Range("AG8").Value = "Banque"
+Range("AG8").Select
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+Range("AG9:AG" & vLastRowNum).FormulaR1C1 = "=LOOKUP(R[0]C[-1],MAPPING_BANQUES,'Map - Banques'!R3C2:R100C2)"
+
+
+Range("AG9").Select
+    Range("AG9:AG" & vLastRowNum).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+
+
+'Doing the same formatting for matching columns (A,B,C and D)
+ Range("A1").Select
+ Range("A8").Select
+  With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+ 
+Range("A1").Select
+Range("B8").Select
+With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+  
+Range("A1").Select
+Range("C8").Select
+With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+
+Range("A1").Select
+Range("D8").Select
+With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .ThemeColor = xlThemeColorAccent4
+        .TintAndShade = 0.399975585192419
+        .PatternTintAndShade = 0
+    End With
+    
+    
+
+'---------------------------------------
+'Formatting Formula columns
+'Formatting table body
+Range("A1").Select
+    Range("A9").Select
+    Range("A9:D" & vLastRowNum).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    
+     
+     
+    Columns("B:AG").EntireColumn.AutoFit
+    
+    
+    
+'Resetting autofilter
+    
+    If wsCopyTo.AutoFilterMode Then
+        If wsCopyTo.FilterMode Then wsCopyTo.ShowAllData
+    Else
+        wsCopyTo.Range("A8").Select
+        wsCopyTo.Range("A8", Cells(Range("E100000").End(xlUp).Row, Range("AAA8").End(xlToLeft).Column)).Select
+        Selection.AutoFilter
+    End If
+       
+       
+ 'Give names to data ranges
+    Worksheets("FIN-OPE-UN-0010-01").Range("A8").Select
+    wsCopyTo.Range("A8", Cells(Range("E100000").End(xlUp).Row, Range("AAA8").End(xlToLeft).Column)).Select
+    vReportDataRange = Selection.Address
+    Range(vReportDataRange).Name = "FINOPEUN001001"
+    
+    
+    'NOT USED ANYMORE BECAUSE OF : Range(vReportDataRange).Name = "FINOPEUN001001"
+    'Checks if range exists : if not, it creates it, if it does, it updates it.
+    'On Error Resume Next
+    'Set vRangeCheck = Nothing
+    'Set vRangeCheck = Range("FINOPEUN001001")
+    'On Error GoTo 0
+    'If vRangeCheck Is Nothing Then
+    '    ActiveWorkbook.Names.Add Name:="FINOPEUN001001", RefersToLocal:="='FIN-OPE-UN-0010-01'!" & vReportDataRange
+     '   ActiveWorkbook.Names("FINOPEUN001001").Comment = ""
+      '  Else
+       ' ActiveWorkbook.Names("FINOPEUN001001").RefersToLocal = "='FIN-OPE-UN-0010-01'!" & vReportDataRange
+    'End If
+ 
+    'Close file that was opened
+    wbCopyFrom.Close SaveChanges:=False
+    
+    Application.CutCopyMode = False
+
+
+
+
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+' IMPORTING PROCESS FOR REPORT 1 COMPLETED. NOW STARTING IMPORTING PROCESS FOR REPORT 2 : FCA-OPE-FC-0370-01
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+wbCopyTo.Activate
+'Disabling Filters
+On Error Resume Next
+
+Worksheets("FCA-OPE-FC-0370-01").Select
+    If Worksheets("FCA-OPE-FC-0370-01").AutoFilterMode Then
+    
+        If CurrentSheet.FilterMode Then
+            Worksheets("FCA-OPE-FC-0370-01").ShowAllData
+            
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+On Error GoTo 0
+
+'-------------------------------------------------------------
+' Moving to destination sheet for first report
+
+Worksheets("FCA-OPE-FC-0370-01").Select
+'-------------------------------------------------------------
+' Storing the analysis workbook as the destination workbook for the copy-paste process of the second report (FCA-OPE-FC-0370-01)
+Set wbCopyTo = ActiveWorkbook
+Set wsCopyTo = ActiveSheet
+
+
+'Deletes everything from the previous report
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+
+'-------------------------------------------------------------
+'Open file with data to be copied
+    
+    vFile = Application.GetOpenFilename("Excel Files (*.xl*)," & _
+    "*.xl*", 1, "Sélectionnez FCA-OPE-FC-0370-01 Détail des montants d'économies en $US plus grand que 20 000$ ou plus petit que -20 000$ pour " & vCurrentMonth & " " & " " & vCurrentYear, "Open", False)
+    
+    'If Cancel then Exit
+    If TypeName(vFile) = "Boolean" Then
+            vMsgBox = MsgBox("Aucun fichier n'a été fourni." & vbNewLine & "Veuillez démarrer la macro de nouveau" & vbNewLine & "lorsque le fichier sera disponible." _
+            , vbExclamation, "Aucun fichier fourni")
+            wbCopyTo.Activate
+            Worksheets("SETUP").Select
+            Exit Sub
+        
+        Else
+            Set wbCopyFrom = Workbooks.Open(vFile)
+            Set wsCopyFrom = wbCopyFrom.Worksheets(1)
+        End If
+    
+    If Not wbCopyFrom.Worksheets(1).Range("A4").Value = "Détail des montants d'économies en $US plus grand à 20 000$ ou plus petit à -20 000$" Then
+        vMsgBox = MsgBox("Ceci ne semble pas être le bon rapport." & vbNewLine & "Assurez-vous de fournir le rapport FCA-OPE-FC-0370-01 à cette étape." _
+                , vbExclamation, "Mauvais rapport fourni")
+        wbCopyFrom.Close SaveChanges:=False
+        wbCopyTo.Activate
+        Worksheets("SETUP").Select
+        
+        Exit Sub
+    End If
+            
+    
+'--------------------------------------------------------------
+'Copy Data and cell format from Report
+    wsCopyFrom.Range("A9").Select
+    
+    'Checks if Cell B9:C9 are merged
+    If IsEmpty(wsCopyFrom.Range("C9")) Then
+        wsCopyFrom.Range("C:C").Delete
+        Else
+    End If
+    wsCopyFrom.Range("A9", Cells(Range("A100000").End(xlUp).Row - 1, Range("AAA9").End(xlToLeft).Column)).Select
+    Selection.Copy
+    wsCopyTo.Range("A9").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+            
+    wsCopyTo.Range("A9").PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+            Application.CutCopyMode = False
+    
+    
+    
+'Setting sheet title
+    wsCopyTo.Range("A4").Value = "Détail des montants d'économies en $US plus grand à 20 000$ ou plus petit à -20 000$"
+    wsCopyTo.Range("A5").Value = "Par Compagnie / Ligne d'affaire / Groupe"
+
+
+    'Copy Date from Report (not data!, date!)
+    wsCopyFrom.Range("A6").Copy
+    wsCopyTo.Range("A6").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+                Application.CutCopyMode = False
+             
+   
+    wsCopyTo.Columns("B:AA").EntireColumn.AutoFit
+    
+    
+    
+'Resetting autofilter
+    
+    If wsCopyTo.AutoFilterMode Then
+        If wsCopyTo.FilterMode Then wsCopyTo.ShowAllData
+    Else
+        wsCopyTo.Activate
+        wsCopyTo.Range("A1").Select
+        wsCopyTo.Range("A9").Select
+        wsCopyTo.Range("A9", Cells(Range("A100000").End(xlUp).Row, Range("AAA9").End(xlToLeft).Column)).Select
+        Selection.AutoFilter
+    End If
+       
+       
+ 'Give names to data ranges
+    Worksheets("FCA-OPE-FC-0370-01").Range("A9").Select
+    wsCopyTo.Range("A9").Select
+    wsCopyTo.Range("A9", Cells(Range("A100000").End(xlUp).Row, Range("AAA9").End(xlToLeft).Column)).Select
+    vReport2DataRange = Selection.Address
+    Range(vReport2DataRange).Name = "FCAOPEFC037001"
+
+    ' NOT USED ANYMORE BECAUSE OF :  Range(vReport2DataRange).Name = "FCAOPEFC037001"
+    'Checks if range exists : if not, it creates it, if it does, it updates it.
+    'On Error Resume Next
+    'Set vRangeCheck = Nothing
+    'Set vRangeCheck = Range("FCAOPEFC037001")
+    'On Error GoTo 0
+    'If vRangeCheck Is Nothing Then
+     '   ActiveWorkbook.Names.Add Name:="FCAOPEFC037001", RefersToLocal:="='FCA-OPE-FC-0370-01'!" & vReport2DataRange
+      '  ActiveWorkbook.Names("FCAOPEFC037001").Comment = ""
+       ' Else
+        'ActiveWorkbook.Names("FCAOPEFC037001").RefersToLocal = "='FCA-OPE-FC-0370-01'!" & vReport2DataRange
+    'End If
+ 
+    'Close file that was opened
+    wbCopyFrom.Close SaveChanges:=False
+    
+    Application.CutCopyMode = False
+       
+      
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+' IMPORTING PROCESS COMPLETED. NOW STARTING PIVOT TABLES UPDATE PROCESS
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+
+'Updates the Pivot tables
+vPivotDataTrim = Mid(ActiveWorkbook.Names("FINOPEUN001001").RefersToR1C1, 2)
+vPivotDataFinal = ActiveWorkbook.Path & "\[" & ActiveWorkbook.Name & "]" & Replace(vPivotDataTrim, "'", "")
+
+Sheets("PIVOT - Réclamations").Select
+    ActiveSheet.PivotTables("PIVOT - Groupes").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT - Groupes").RefreshTable
+    ActiveSheet.PivotTables("PIVOT - Groupes").PivotSelect "'# Groupe'[All]", xlLabelOnly, True
+          
+Sheets("PIVOT - Banques & CHQ").Select
+    
+    'ActiveSheet.PivotTables("PIVOT-0196427-Sommaire").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-0196427-Sommaire").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-0196427-Sommaire").PivotFields("Banque"). _
+        CurrentPage = "01-964-27"
+    '   ActiveSheet.PivotTables("PIVOT-700393-Sommaire").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-700393-Sommaire").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-700393-Sommaire").PivotFields("Banque"). _
+        CurrentPage = "07-003-93"
+    '   ActiveSheet.PivotTables("PIVOT-700385-Sommaire").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-700385-Sommaire").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-700385-Sommaire").PivotFields("Banque"). _
+        CurrentPage = "07-003-85"
+    'ActiveSheet.PivotTables("PIVOT-0196028-Sommaire").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-0196028-Sommaire").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-0196028-Sommaire").PivotFields("Banque"). _
+        CurrentPage = "01-960-28"
+    '   ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotFields("Banque"). _
+        CurrentPage = "01-964-27"
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotFields("Statut"). _
+        PivotItems("Void").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotFields("Statut"). _
+        PivotItems("Stop payment").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotFields("Statut"). _
+        PivotItems("Processed").Visible = False
+    'ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotFields("Banque"). _
+        CurrentPage = "07-003-93"
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotFields("Statut"). _
+        PivotItems("Void").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotFields("Statut"). _
+        PivotItems("Stop payment").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotFields("Statut"). _
+        PivotItems("Processed").Visible = False
+    'ActiveSheet.PivotTables("PIVOT-700385-Void").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-700385-Void").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-700385-Void").PivotFields("Banque").CurrentPage _
+        = "07-003-85"
+    ActiveSheet.PivotTables("PIVOT-700385-Void").PivotFields("Statut"). _
+        PivotItems("Void").Visible = True
+    ActiveSheet.PivotTables("PIVOT-700385-Void").PivotFields("Statut"). _
+        PivotItems("Stop payment").Visible = True
+    ActiveSheet.PivotTables("PIVOT-700385-Void").PivotFields("Statut"). _
+        PivotItems("Processed").Visible = False
+    'ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotFields("Banque"). _
+    '    ClearAllFilters
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotFields("Banque"). _
+        CurrentPage = "01-960-28"
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotFields("Statut"). _
+        PivotItems("Void").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotFields("Statut"). _
+        PivotItems("Stop payment").Visible = True
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotFields("Statut"). _
+        PivotItems("Processed").Visible = False
+    ActiveSheet.PivotTables("PIVOT-0196427-Sommaire").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-700393-Sommaire").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-700385-Sommaire").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-0196028-Sommaire").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-0196427-Void").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-0700393-Void").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-700385-Void").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT-0196028-Void").PivotCache.Refresh
+       
+    Cells.Select
+    Cells.EntireColumn.AutoFit
+    
+    
+    
+    ' ---------------------------------------------
+    'CLAIMS DE + DE 20 K PIVOT TABLE UPDATE
+    Sheets("PIVOT - Claims+20K").Select
+    vPivotDataTrim = Mid(ActiveWorkbook.Names("FCAOPEFC037001").RefersToR1C1, 2)
+    vPivotDataFinal = ActiveWorkbook.Path & "\[" & ActiveWorkbook.Name & "]" & Replace(vPivotDataTrim, "'", "")
+    ActiveSheet.PivotTables("PIVOT - Claims+20K").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT - Claims+20K").PivotCache.Refresh
+    
+    
+    ' ---------------------------------------------
+    'PIVOT - RECLASS MEDICOHOSPITALIER PIVOT TABLE UPDATE
+    Sheets("PIVOT - Reclass MH Non MC").Select
+    vPivotDataTrim = Mid(ActiveWorkbook.Names("FINOPEUN001001").RefersToR1C1, 2)
+    vPivotDataFinal = ActiveWorkbook.Path & "\[" & ActiveWorkbook.Name & "]" & Replace(vPivotDataTrim, "'", "")
+    ActiveSheet.PivotTables("PIVOT - Reclass MH Non MC").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT - Reclass MH Non MC").PivotCache.Refresh
+    
+    
+    Sheets("PIVOT - Reclass MH MC").Select
+    ActiveSheet.PivotTables("PIVOT - Reclass MH MC").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT - Reclass MH MC").PivotCache.Refresh
+    ActiveSheet.PivotTables("PIVOT - Reclass MH MC 2").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT - Reclass MH MC 2").PivotCache.Refresh
+    
+    
+    
+'------------------------------------------------------------------------------------------------------
+' PIVOT TABLES UPDATE COMPLETE
+'------------------------------------------------------------------------------------------------------
+
+' Last touches before finishing update process
+Sheets("SETUP").Select
+Range("E50").FormulaR1C1 = "=SUM('FIN-OPE-UN-0010-01'!R8C23:R" & vLastRowNum & "C23)"
+Sheets("B-RECLASS MÉDICO-HOSPITALIER>>").Select
+Range("C25").FormulaR1C1 = "=SUM('FIN-OPE-UN-0010-01'!R8C23:R" & vLastRowNum & "C23)-SUMIF('FIN-OPE-UN-0010-01'!R8C10:R" & vLastRowNum & "C10" & _
+    ",""Médico hospitalier"",'FIN-OPE-UN-0010-01'!R8C23:R" & vLastRowNum & "C23)"
+Sheets("SETUP").Select
+Range("A1").Select
+
+
+End Sub

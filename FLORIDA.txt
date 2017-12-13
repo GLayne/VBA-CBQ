@@ -1,0 +1,426 @@
+Sub update_Reclamations_Floride()
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+'  This macro asks the user for BCBS invoices and Cognos reports related to insurance claims related to travel insurance
+'  for insured customers located in Florida. It imports those reports and invoices and updates the related pivot tables
+'  in order to prepare journal entries to account for this month's activity.
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+'  Parts of this code were obtained from various non-copyrighted sources.
+'  Coded by Gabriel Lainesse. gabriel.lainesse@qc.croixbleue.ca
+'  This code is not protected by Copyright. Feel free to use it, or parts of it, but only for Croix Bleue related work.
+'  By using this macro, you agree that you will not hold me (Gabriel Lainesse) responsible for any harm that
+'  occurs as a result of your use of the macro.
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+' Declaring variables
+Dim vMsgBox As Integer
+Dim vFile As Variant
+Dim wbCopyTo As Workbook
+Dim wsCopyTo As Worksheet
+Dim wbCopyFrom As Workbook
+Dim wsCopyFrom As Worksheet
+Dim vLastRow As Variant
+Dim vLastRowNum As Integer
+Dim vLastColumn As Variant
+Dim vFirstPastedRow As Variant
+Dim vFirstPastedColumn As Variant
+Dim numRows As Variant
+Dim numColumns As Variant
+
+
+Dim vRangeCheck As Range
+Dim vReportDataRange As Variant
+Dim vReport2DataRange As Variant
+Dim vPivotDataTrim As Variant
+Dim vPivotDataFinal As Variant
+
+Dim iPivot As PivotTable
+Dim iWorksheet As Worksheet
+Dim iCell As Range
+Dim iCell2 As Range
+Dim iCell3 As Range
+
+'==========================================================================================================
+'MESURES DE SÉCURITÉ
+If Not ActiveWorkbook.Sheets(1).Range("A1") = "ANALYSE DES RÉCLAMATIONS PAYÉES PAR BLUE CROSS BLUE SHIELD FLORIDA" Then
+    vMsgBox = MsgBox("Vous devez exécuter la macro depuis le classeur d'analyse des réclamations payées par BCBS Florida!" & vbNewLine & _
+    "Assurez-vous également que la feuille SETUP soit la" & vbNewLine & "première feuille du classeur et que le titre" & vbNewLine & _
+    "'ANALYSE DES RÉCLAMATIONS PAYÉES PAR BLUE CROSS BLUE SHIELD FLORIDA' soit inscrit correctement dans la cellule A1.", _
+        vbExclamation, "Mauvais classeur pour cette macro")
+    Exit Sub
+    Else
+End If
+
+
+'Checks if data is missing in SETUP sheet
+If IsEmpty(ActiveWorkbook.Sheets(1).Range("MOISN")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("AN")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("SIGNATURE")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("ECONOMIE")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("TAUXCHANGE")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("FRAISUS")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("FRAISUS_ON_ATL")) Then
+    vMsgBox = MsgBox("Des données sont manquantes dans la feuille SETUP." & vbNewLine & "La macro ne peut donc pas continuer." & vbNewLine _
+    & "Veuillez remplir les champs orangés de la feuille SETUP" & vbNewLine & "avant de procéder à l'exécution de cette macro.", _
+        vbExclamation, "Données manquantes")
+    Exit Sub
+    Else
+End If
+
+
+'Storing current month in a variable
+Dim vCurrentMonth As String
+vCurrentMonth = Worksheets("SETUP").Range("MOIST").Value
+
+'Storing current year in a variable
+Dim vCurrentYear As String
+vCurrentYear = Worksheets("SETUP").Range("AN").Value
+
+
+
+
+'==========================================================================================================
+'IMPORTATION DES FACTURES DE BCBS FLORIDA
+vMsgBox = MsgBox("Assurez-vous d'avoir fait une copie de l'analyse du mois précédent avant de mettre ce fichier à jour avec les données du mois." & vbNewLine & _
+            "Les données de ce fichier seront écrasées par ce processus et il n'y aura pas moyen de les récupérer par la suite." _
+            & vbNewLine & vbNewLine & "Vous aurez besoin des factures suivantes :" & _
+            vbNewLine & "- Factures hebdomadaires de BCBS Florida (4 ou 5)" & vbNewLine & "- Facture mensuelle de BCBS Florida" & _
+            vbNewLine & vbNewLine & _
+            "Vous aurez également besoin des rapports Cognos suivants :" & vbNewLine & _
+            "- FCA-OPE-FC-0020-02 - Détail des réclamations Floride créditées en dollars US" & vbNewLine & _
+            "- FCA-OPE-FC-0020-05 - Détail des réclamations Floride creditées en dollars CDN" & vbNewLine & _
+            "- FCA-OPE-FC-0020-07 - Détail des réclamations Floride payées en dollars US" & vbNewLine & _
+            "- FCA-OPE-FC-0020-08 - Détail des réclamations Floride payées en dollars CDN" & vbNewLine & _
+            "- FCA-OPE-FC-0020-10 - Détail des réclamations Floride rejetées en dollars US" & vbNewLine & _
+            "- FCA-OPE-FC-0370-01 Détail des montants d'économies en $US plus grand que 20 000$ ou plus petit que -20 000$" & _
+            "Voulez-vous donc démarrer le procesus de mise à jour?", _
+            vbExclamation + vbYesNo + vbDefaultButton2, "Démarrer la mise à jour?")
+            
+If Not vMsgBox = 6 Then
+        vMsgBox = MsgBox("Mise à jour annulée.", vbOKOnly, "Opération annulée")
+        End
+    ElseIf vMsgBox = 6 Then
+        'Continue on
+    Else
+        End
+End If
+
+'==========================================================================================================
+'OPÉRATIONS PRÉ-IMPORTATION
+'Disabling Filters and clearing sheets of previous data
+On Error Resume Next
+Worksheets("77700").Select
+    If Worksheets("77700").AutoFilterMode Then
+        If CurrentSheet.FilterMode Then
+            Worksheets("77700").ShowAllData
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("77700").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("77707").Select
+    If Worksheets("77707").AutoFilterMode Then
+        If CurrentSheet.FilterMode Then
+            Worksheets("77707").ShowAllData
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("77707").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("77794").Select
+    If Worksheets("77794").AutoFilterMode Then
+        If CurrentSheet.FilterMode Then
+            Worksheets("77794").ShowAllData
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("77794").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("77795").Select
+    If Worksheets("77795").AutoFilterMode Then
+        If CurrentSheet.FilterMode Then
+            Worksheets("77795").ShowAllData
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("77795").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+    
+Worksheets("FC0020-02 CRÉDIT-USD").Select
+    If Worksheets("FC0020-02 CRÉDIT-USD").AutoFilterMode Then
+        If CurrentSheet.FilterMode Then
+            Worksheets("FC0020-02 CRÉDIT-USD").ShowAllData
+        Else
+            CurrentSheet.AutoFilterMode = False
+        End If
+    Else
+    End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("FC0020-02 CRÉDIT-USD").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+    
+Worksheets("FC0020-05 CRÉDIT-CAD").Select
+If Worksheets("FC0020-05 CRÉDIT-CAD").AutoFilterMode Then
+    If CurrentSheet.FilterMode Then
+        Worksheets("FC0020-05 CRÉDIT-CAD").ShowAllData
+    Else
+        CurrentSheet.AutoFilterMode = False
+    End If
+Else
+End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("FC0020-05 CRÉDIT-CAD").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("FC0020-07 PAYÉ-USD").Select
+If Worksheets("FC0020-07 PAYÉ-USD").AutoFilterMode Then
+    If CurrentSheet.FilterMode Then
+        Worksheets("FC0020-07 PAYÉ-USD").ShowAllData
+    Else
+        CurrentSheet.AutoFilterMode = False
+    End If
+Else
+End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("FC0020-07 PAYÉ-USD").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("FC0020-08 PAYÉ-CAD").Select
+If Worksheets("FC0020-08 PAYÉ-CAD").AutoFilterMode Then
+    If CurrentSheet.FilterMode Then
+        Worksheets("FC0020-08 PAYÉ-CAD").ShowAllData
+    Else
+        CurrentSheet.AutoFilterMode = False
+    End If
+Else
+End If
+For Each iPivot In Worksheets("FC0020-08 PAYÉ-CAD").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("FC0020-10 REJ-USD").Select
+If Worksheets("FC0020-10 REJ-USD").AutoFilterMode Then
+    If CurrentSheet.FilterMode Then
+        Worksheets("FC0020-10 REJ-USD").ShowAllData
+    Else
+        CurrentSheet.AutoFilterMode = False
+    End If
+Else
+End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("FC0020-10 REJ-USD").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+
+Worksheets("FC0370-01 4KCAP").Select
+If Worksheets("FC0370-01 4KCAP").AutoFilterMode Then
+    If CurrentSheet.FilterMode Then
+        Worksheets("FC0370-01 4KCAP").ShowAllData
+    Else
+        CurrentSheet.AutoFilterMode = False
+    End If
+Else
+End If
+Cells.Select
+Selection.ClearContents
+Selection.ClearFormats
+For Each iPivot In Worksheets("FC0370-01 4KCAP").PivotTables
+    iPivot.PivotSelect "", xlDataAndLabel, True
+    Selection.Delete Shift:=xlToLeft
+Next iPivot
+On Error GoTo 0
+
+
+
+'-------------------------------------------------------------
+' Storing the analysis workbook as the destination workbook for the data
+Set wbCopyTo = ActiveWorkbook
+Set wsCopyTo = ActiveSheet
+
+
+'==========================================================================================================
+'IMPORTATION DES FACTURES DE BCBS FLORIDA
+'-------------------------------------------------------------
+'PREMIÈRE SEMAINE
+'Open file with data to be copied
+    vMsgBox = MsgBox("Veuillez maintenant sélectionner les factures de BCBS Florida." & vbNewLine & "Ces factures sont normalement nommées comme suit :" & vbNewLine _
+    & vbNewLine & "Factures hebdomadaires : Quebec Invoice__Listing_+'MOIS+DERNIERJOUR'" & vbNewLine & _
+    "Facture mensuelle : Quebec Monthly Listing +MOIS+DERNIERJOUR", vbOKOnly, "Sélection des factures")
+    
+    vFile = Application.GetOpenFilename("Excel Files (*.xl*)," & _
+    "*.xl*", 1, "Sélectionnez la facture BCBS Florida pour la première semaine du mois de " & vCurrentMonth & " " & " " & vCurrentYear, "Open", False)
+    
+    'If Cancel then Exit
+    If TypeName(vFile) = "Boolean" Then
+            vMsgBox = MsgBox("Aucun fichier n'a été fourni." & vbNewLine & "Veuillez démarrer la macro de nouveau" & vbNewLine & "lorsque le fichier sera disponible." _
+            , vbExclamation, "Aucun fichier fourni")
+            wbCopyTo.Activate
+            Worksheets("SETUP").Select
+            End
+        Else
+        End If
+        
+Set wbCopyFrom = Workbooks.Open(vFile)
+Set wsCopyFrom = wbCopyFrom.Worksheets(1)
+'Obtention des montants de réclamation payées et chargées pour la première semaine
+Set wsCopyTo = wbCopyTo.Worksheets("Facture Hebdo")
+
+For Each iWorksheet In wbCopyFrom.Worksheets
+    Select Case True
+        Case InStr(1, "77700", iWorksheet.Name, vbTextCompare) = 1
+            Set wsCopyFrom = iWorksheet
+
+            '------------------------------------------
+            'Obtient les dates que cette semaine couvre
+            On Error Resume Next
+            iWorksheet.Cells.UnMerge
+            On Error GoTo 0
+            
+            For Each iCell In iWorksheet.Range("A1:M15")
+                If Not InStr(1, "CLAIM DETAIL BILLING REPORT FROM", iCell.Value, vbTextCompare) = 0 Then
+                    wsCopyTo.Range("BCBSFLS1D").Value = Mid(iCell.Value, InStr(1, "/", iCell.Value, vbTextCompare) - 2, 10)
+                    wsCopyTo.Range("BCBSFLS1F").Value = Right(iCell.Value, 10)
+                        Exit For
+                    Else
+                        
+                End If
+            Next iCell
+            '------------------------------------------
+            'Obtient les montants payés et chargés de la semaine pour ce groupe
+            'Loop sur la première colonne pour trouver la dernière ligne de l'entête
+            For Each iCell In iWorksheet.Range("A1:A10")
+                If iCell.Value = "ID" Then
+                    'Loop sur la dernière rangée de l'entête pour trouver la colonne des montants payés
+                    For Each iCell2 In iWorksheet.Range(Cells(iCell.Row, 1), Cells(iCell.Row, iWorksheet.UsedRange.Columns.Count))
+                        If iCell2.Value = "PAID" And iCell2.Offset(-1, 0).Value = "AMOUNT" Then
+                            'Loop sur la colonne des montants payés pour trouver la dernière ligne et obtenir le total de montant payé.
+                            For Each iCell3 In iWorksheet.Range(Cells(iCell2.Row, iCell2.Column), Cells(iWorksheet.UsedRange.Rows.Count, iCell2.Column))
+                                If iCell3.Offset(0, -iCell3.Column + 1).Value = "TOTALS-GROUP" Then
+                                    wsCopyTo.Range("BCBSFLS100PAID").Value = iCell3.Value
+                                Else
+                                End If
+                            
+                            Next iCell3
+                        Else
+                        End If
+                    Next iCell2
+                    
+                    For Each iCell2 In iWorksheet.Range(Cells(iCell.Row, 1), Cells(iCell.Row, iWorksheet.UsedRange.Columns.Count))
+                        If iCell2.Value = "CHARGES" And iCell2.Offset(-1, 0).Value = "COVERED" Then
+                            'Loop sur la colonne des montants payés pour trouver la dernière ligne et obtenir le total de montant payé.
+                            For Each iCell3 In iWorksheet.Range(Cells(iCell2.Row, iCell2.Column), Cells(iWorksheet.UsedRange.Rows.Count, iCell2.Column))
+                                If iCell3.Offset(0, -iCell3.Column + 1).Value = "TOTALS-GROUP" Then
+                                    wsCopyTo.Range("BCBSFLS100CHRGD").Value = iCell3.Value
+                                Else
+                                End If
+                            
+                            Next iCell3
+                        Else
+                        End If
+                    Next iCell2
+                    
+                Else
+                End If
+                
+            Next iCell
+        
+        Case InStr(1, "77707", iWorksheet.Name, vbTextCompare) = 1
+            Set wsCopyFrom = iWorksheet
+        
+        
+        Case InStr(1, "77794", iWorksheet.Name, vbTextCompare) = 1
+            Set wsCopyFrom = iWorksheet
+        
+        
+        Case InStr(1, "77795", iWorksheet.Name, vbTextCompare) = 1
+            Set wsCopyFrom = iWorksheet
+    
+    
+        Case Else
+
+
+
+    End Select
+        
+'==========================================================================================================
+'IMPORTATION DES RAPPORTS DE RÉCLAMATIONS PAYÉES
+'FCA-OPE-FC-0020-07 Sommaire des réclamations Floride payées en dollars US
+'FCA-OPE-FC-0020-08 Sommaire des réclamations Floride payées en dollars CDN
+
+vMsgBox = MsgBox("Veuillez maintenant sélectionner les rapports Cognos.", vbOKOnly, "Sélection des rapports Cognos.")
+
+
+
+'==========================================================================================================
+'IMPORTATION DES RAPPORTS DE RÉCLAMATIONS CRÉDITÉES
+'FCA-OPE-FC-0020-02 Détail des réclamations Floride créditées en dollars US
+'FCA-OPE-FC-0020-05 Détail des réclamations Floride creditées en dollars CDN
+
+
+
+
+'==========================================================================================================
+'IMPORTATION DU RAPPORT DE RÉCLAMATIONS REJETÉES
+'FCA-OPE-FC-0020-10 Sommaire des réclamations Floride rejetées en dollars US
+
+
+
+
+
+'==========================================================================================================
+'IMPORTATION DU RAPPORT D'ÉCONOMIE SUR LES FRAIS DE TRAITEMENT DÛ AU MAXIMUM DE FRAIS DE 4000$ PAR CONTRAT.
+'FCA-OPE-FC-0370-01 Détail des montants d'économies en $US plus grand que 20 000$ ou plus petit que -20 000$
+
+
+
+
+
+End Sub

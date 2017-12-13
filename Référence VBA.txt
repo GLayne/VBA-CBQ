@@ -1,0 +1,29 @@
+Défiler jusqu'à la première/dernière cellule d'une série de données (CONTROL + Flèches)
+
+Range("A1").Select
+Selection.End(xlDown).Select
+Selection.End(xlToRight).Select
+Selection.End(xlToLeft).Select
+Selection.End(xlTop).Select
+
+
+Sélectionner une série de données en défilant jusqu'à la première/dernière cellule d'une série de données (CONTROL + SHIFT + Flèches)
+
+Range("A1", Selection.End(xlDown)).Select
+Range("A1", Selection.End(xlToRight)).Select
+Range("A1", Selection.End(xlToLeft)).Select
+Range("A1", Selection.End(xlTop)).Select
+
+
+Obtenir le nombre de colonnes/rangées utilisée dans une feuille (Attention! Ceci inclus tout type de formattage!)
+ActiveSheet.UsedRange.Rows.Count
+ActiveSheet.UsedRange.Columns.Count
+
+
+
+
+
+MEILLEURE FAÇON DE SÉLECTIONNER LES DONNÉES D'UNE FEUILLE :
+
+Header only : Replace 9 by header row number : Range("A9", Range("AAA9").End(xlToLeft).Address).Select
+All data : Replace 9 by header row number : Range("a9", Cells(Range("A100000").End(xlUp).Row, Range("aaa9").End(xlToLeft).Column

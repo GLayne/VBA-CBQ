@@ -1,0 +1,38 @@
+Taux des frais d'économie Univers : [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO]
+
+	** /100
+
+
+Calcul des frais d'économie :
+if (?p_devise? = 'CAD') 
+then (if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+         then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE])
+         else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100;2))
+) else (if ([VSTCDSC]='F')
+            then(if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+          then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE])
+          else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100;2))
+)
+else(
+if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+          then (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE] / [VST_TAUX_USA];2))
+          else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100 / [XC4DTAV_GDG].[XC4DTAV_GDG].[VST_TAUX_USA];2))
+))
+
+
+Calcul du montant d'économie :
+if (?p_devise? = 'CAD')
+ then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO])
+ else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] / [VST_TAUX_USA];2))
+
+
+Calcul du montant net remboursé :
+if (?p_devise? = 'CAD')
+ then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTNEREM])
+ else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTNEREM] / [VST_TAUX_USA];2))
+
+
+Calcul des dépenses soumises :
+if (?p_devise? = 'CAD')
+ then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTSBEXP])
+ else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTSBEXP] / [VST_TAUX_USA];2))

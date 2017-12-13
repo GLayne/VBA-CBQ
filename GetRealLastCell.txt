@@ -1,0 +1,16 @@
+Public Function GetRealLastCell(gWorksheet As Worksheet) As Range
+  Dim lRealLastRow As Long
+  Dim lRealLastColumn As Long
+  Dim currentWorksheet As Worksheet
+  Dim currentRange As Range
+  Set currentWorksheet = ActiveSheet
+  Set currentRange = Selection
+  gWorksheet.Select
+  Range("A1").Select
+  On Error Resume Next
+  lRealLastRow = gWorksheet.Cells.Find("*", Range("A1"), xlFormulas, , xlByRows, xlPrevious).Row
+  lRealLastColumn = gWorksheet.Cells.Find("*", Range("A1"), xlFormulas, , xlByColumns, xlPrevious).column
+  currentWorksheet.Select
+  currentRange.Select
+  Set GetRealLastCell = gWorksheet.Cells(lRealLastRow, lRealLastColumn)
+End Function

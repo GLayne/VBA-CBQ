@@ -1,0 +1,61 @@
+Sub FormatChartNums()
+Dim ws As Worksheet
+Dim pc As ChartObject
+Dim strFmt As String
+On Error Resume Next
+strFmt = "#,##0"
+
+For Each Ws In ActiveWorkbook.Worksheets
+  For Each PC In ws.ChartObjects
+    With pc.Chart
+      'test for pivot charts
+      If Not .PivotLayout Is Nothing Then
+        .Axes(xlValue).TickLabels _
+          .NumberFormat = strFmt
+      End If
+    End With
+  Next PC
+Next Ws
+
+End Sub
+
+
+Sub Update_PT_Format_0()
+    
+    For Each pt In ActiveSheet.PivotTables
+        For Each pField In pt.DataFields
+            pField.NumberFormat = "_(* #,##0.00_);_(* (#,##0.00);_(* -_)"
+            Debug.Print pField
+        Next pField
+    Next pt
+
+End Sub
+
+
+Sub Update_PT_Format()
+    
+    For Each pt In ActiveSheet.PivotTables
+        pt.PivotSelect "", xlDataOnly, True
+        Selection.NumberFormat = "_(* #,##0.00_);_(* (#,##0.00);_(* -_)"
+    Next pt
+
+End Sub
+
+
+
+JAVA : 
+Constructor = méthode membre d'une classe  qui instancie cette même classe
+
+
+
+// Echo.java
+class Echo
+{
+   public static void main (String [] args) throws java.io.IOException
+   {
+      int ch;
+      System.out.print ("Enter some text: ");
+      while ((ch = System.in.read ()) != '\n')
+         System.out.print ((char) ch);
+   }
+}

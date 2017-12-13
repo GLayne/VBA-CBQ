@@ -1,0 +1,14 @@
+Sub changePivotFormat()
+
+Dim pt As PivotTable
+Dim pf As PivotField
+Dim pi As PivotItem
+Dim ws As Worksheet
+
+Set ws = ActiveSheet
+
+
+    For Each pt In ws.PivotTables
+        pt.DataBodyRange.NumberFormat = "#,##0,;(#,##0,);-"
+    Next pt
+End Sub

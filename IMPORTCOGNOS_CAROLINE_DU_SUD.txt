@@ -1,0 +1,871 @@
+
+Sub Import_Cognos_Report_CDS()
+'
+'  Import_Cognos_Report_CDS Macro
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+'  This macro asks the user for Cognos reports # FIN-OPE-FC-0020-01 and FIN-OPE-FC-0020-02
+'  and updates related pivot tables in order to prepare journal entries to account for South Carolina Blue Cross reclamations.
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+'  Parts of this code were obtained from various non-copyrighted sources.
+'  Coded by Gabriel Lainesse. gabriel.lainesse@qc.croixbleue.ca
+'  This work is not protected by Copyright. Feel free to use it, or parts of it, but only for Croix Bleue related work.
+'  By using this macro, you agree that you will not hold me (Gabriel Lainesse) responsible for any harm that
+'  occurs as a result of your use of the macro.
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+
+'Checks if Macro is run from the correct workbook
+Dim vMsgBox As Integer
+
+
+If Not ActiveWorkbook.Sheets(1).Range("A1") = "ANALYSE DES RÉCLAMATIONS EN PROVENANCE DE LA CAROLINE DU SUD" Then
+    
+    vMsgBox = MsgBox("Vous devez exécuter la macro depuis le classeur d'analyse des réclamations en provenance de la Caroline du Sud!" & vbNewLine & _
+    "Assurez-vous également que la feuille SETUP soit la" & vbNewLine & "première feuille du classeur et que le titre" & vbNewLine & _
+    "'ANALYSE DES RÉCLAMATIONS EN PROVENANCE DE LA CAROLINE DU SUD' soit inscrit correctement dans la cellule A1.", _
+        vbExclamation, "Mauvais classeur pour cette macro")
+    Exit Sub
+End If
+
+' Prevents from running the macro without user consent, and thus prevent losing data.
+vMsgBox = MsgBox("Voulez-vous vraiment lancer la procédure de mise à jour?", vbYesNo, "Attention!")
+
+If Not vMsgBox = 6 Then
+    Worksheets("SETUP").Select
+    vMsgBox = MsgBox("La mise à jour a été annulée", vbOKOnly, "Mise à jour annulée")
+    Exit Sub
+End If
+
+'Asks if a copy of the previous month has been done
+vMsgBox = MsgBox("Les anciennes données seront écrasées et ce de façon définitive." _
+    & vbNewLine & "Assurez-vous d'avoir fait une copie du classeur avant de lancer la mise à jour." _
+    & vbNewLine & vbNewLine & "Avez-vous déjà fait une copie du classeur du mois précédent?", vbYesNo, "Attention!")
+
+If Not vMsgBox = 6 Then
+    Worksheets("SETUP").Select
+    vMsgBox = MsgBox("Veuillez faire une copie des données antérieures avant de démarrer cette macro.", vbOKOnly, "Mise à jour annulée")
+    Exit Sub
+End If
+
+'Checks if data is missing in SETUP sheet
+If IsEmpty(ActiveWorkbook.Sheets(1).Range("MOISN")) Or IsEmpty(ActiveWorkbook.Sheets(1).Range("AN")) Or IsEmpty(ActiveWorkbook.Sheets(1).Range("SIGNATURE")) _
+    Or IsEmpty(ActiveWorkbook.Sheets(1).Range("ECONOMIE")) Or IsEmpty(ActiveWorkbook.Sheets(1).Range("TAUXCHANGE")) Then
+    vMsgBox = MsgBox("Des données sont manquantes dans la feuille SETUP." & vbNewLine & "La macro ne peut donc pas continuer." & vbNewLine _
+    & "Veuillez remplir les champs orangés de la feuille SETUP" & vbNewLine & "avant de procéder à l'exécution de cette macro.", _
+        vbExclamation, "Données manquantes")
+    Exit Sub
+End If
+
+
+'Storing current month in a variable
+
+Dim vCurrentMonth As String
+vCurrentMonth = Worksheets("SETUP").Range("MOIST").Value
+
+'Storing current year in a variable
+
+
+
+Dim vCurrentYear As String
+vCurrentYear = Worksheets("SETUP").Range("AN").Value
+
+' Declaring variables for Cognos extraction and copy-pasting into the analysis workbook.
+Dim vFile As Variant
+Dim wbCopyTo As Workbook
+Dim wsCopyTo As Worksheet
+Dim wbCopyFrom As Workbook
+Dim wsCopyFrom As Worksheet
+Dim vLastRow As Variant
+Dim vLastColumn As Variant
+Dim vFirstPastedRow As Variant
+Dim vFirstPastedColumn As Variant
+Dim numRows As Variant
+Dim numColumns As Variant
+
+Dim vReport1DataRange As Variant
+Dim vReport2DataRange As Variant
+Dim vPivotDataTrim As Variant
+Dim vPivotDataFinal As Variant
+
+'Disabling Filters
+
+Worksheets("FIN-OPE-FC-0020-01").Select
+    If Worksheets("FIN-OPE-FC-0020-01").AutoFilterMode Then
+        If FilterMode Then Worksheets("FIN-OPE-FC-0020-01").ShowAllData
+    Else
+        Range("A7").Select
+         Range("A7", Selection.End(xlToRight)).Select
+        Selection.AutoFilter
+    End If
+    
+Worksheets("FIN-OPE-FC-0020-02").Select
+    If Worksheets("FIN-OPE-FC-0020-02").AutoFilterMode Then
+        If FilterMode Then Worksheets("FIN-OPE-FC-0020-02").ShowAllData
+    Else
+        Range("A7").Select
+         Range("A7", Selection.End(xlToRight)).Select
+        Selection.AutoFilter
+    End If
+
+'-------------------------------------------------------------
+' First report copy-paste process : FIN-OPE-FC-0020-01
+'-------------------------------------------------------------
+'-------------------------------------------------------------
+' Moving to destination sheet for first report
+
+Worksheets("FIN-OPE-FC-0020-01").Select
+'-------------------------------------------------------------
+' Storing the analysis workbook as the destination workbook for the copy-paste process of the first report (FIN-OPE-FC-0020-01)
+Set wbCopyTo = ActiveWorkbook
+Set wsCopyTo = ActiveSheet
+
+
+'Deletes everything from the previous report
+Range("A8:V10000").Select
+
+Selection.ClearContents
+Selection.ClearFormats
+
+
+    '-------------------------------------------------------------
+    'Open file with data to be copied
+    
+    vFile = Application.GetOpenFilename("Excel Files (*.xl*)," & _
+    "*.xl*", 1, "Sélectionnez FIN-OPE-FC-0020-01 Détail des réclamations Caroline du Sud pour " & vCurrentMonth & " " & " " & vCurrentYear, "Open", False)
+    
+    'If Cancel then Exit
+    If TypeName(vFile) = "Boolean" Then
+            vMsgBox = MsgBox("Aucun fichier n'a été fourni." & vbNewLine & "Veuillez démarrer la macro de nouveau" & vbNewLine & "lorsque le fichier sera disponible." _
+            , vbExclamation, "Aucun fichier fourni")
+            wbCopyTo.Activate
+            Worksheets("SETUP").Select
+            Exit Sub
+        
+        Else
+            Set wbCopyFrom = Workbooks.Open(vFile)
+            Set wsCopyFrom = wbCopyFrom.Worksheets(1)
+        End If
+    
+    If Not wbCopyFrom.Worksheets(1).Range("A4").Value = "Détail des réclamations Caroline du Sud" Then
+        vMsgBox = MsgBox("Ceci ne semble pas être le bon rapport." & vbNewLine & "Assurez-vous de fournir le rapport FIN-OPE-FC-0020-01 à cette étape." _
+                , vbExclamation, "Mauvais rapport fourni")
+        wbCopyTo.Activate
+        Worksheets("SETUP").Select
+        Exit Sub
+    End If
+            
+    
+    '--------------------------------------------------------------
+  'Copy Data and cell format from Report
+    wsCopyFrom.Range("A7:S10000").Copy
+    wsCopyTo.Range("D7").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+            
+    wsCopyTo.Range("D7").PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+            Application.CutCopyMode = False
+    
+    
+ 'Setting first headers for upcoming formulas
+    wsCopyTo.Range("A7").Value = "Entité"
+    wsCopyTo.Range("B7").Value = "Match Tableau"
+    wsCopyTo.Range("C7").Value = "# Groupe"
+      
+    
+' Set pasted data in variables in order to paste formulas in the next step.
+
+    wsCopyTo.Activate
+    Range("D7").Select
+    Selection.End(xlDown).Select
+    vLastRow = Selection.Address
+    
+    Range("A1").Select
+     
+    wsCopyTo.Activate
+    Range("D7").Select
+    Selection.End(xlToRight).Select
+    vLastColumn = Selection.Address
+    
+    
+    Range("A1").Select
+        
+    Range("D7").Select
+    Range("D7", Selection.End(xlDown)).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows - 1, numColumns).Select
+    vFirstPastedColumn = Selection.Address
+    
+    Range("A1").Select
+      
+    Range("A7").Select
+    Range("A7", Selection.End(xlToRight)).Select
+    vFirstPastedRow = Selection.Address
+
+    'Copy Date from Report (not data!, date!)
+    wsCopyFrom.Range("A5").Copy
+    wsCopyTo.Range("D5").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+                Application.CutCopyMode = False
+             
+'Paste matching formulas ahead of the pasted data.
+    wsCopyTo.Activate
+    
+    'Formula entry for entity match
+    Range(vFirstPastedColumn).Offset(0, -3).FormulaR1C1 = _
+        "=IFERROR(VLOOKUP(R[0]C[2],MAPPING_TABLE,6,FALSE),VLOOKUP(LEFT(R[0]C[2],1)*100000,MAPPING_TABLE,6,FALSE))"
+    Range(vFirstPastedColumn).Offset(0, -3).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+       
+    'Formula entry for aggregate sheet match
+    Range(vFirstPastedColumn).Offset(0, -2).FormulaR1C1 = _
+        "=IFERROR(VLOOKUP(R[0]C[1],MAPPING_TABLE,5,FALSE),VLOOKUP(LEFT(R[0]C[1],1)*100000,MAPPING_TABLE,5,FALSE))"
+    Range(vFirstPastedColumn).Offset(0, -2).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+    
+    'Formula entry for getting group numbers as a number formatted value (prevents issues with edited cell format after import
+    '(Number as text is often wrongly converted to number when edited by Excel or the user)
+    Range(vFirstPastedColumn).Offset(0, -1).FormulaR1C1 = "=VALUE(MID(R[0]C[1],FIND(""("",R[0]C[1])+1,6))"
+    Range(vFirstPastedColumn).Offset(0, -1).Select
+    With Selection
+        .HorizontalAlignment = xlRight
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+        .NumberFormat = "0"
+        
+    End With
+                                                    
+            
+    'Adding "Grand total" in the last row, to identify it in the pivot, if needed.
+    Range("A7").Select
+    Selection.End(xlDown).Select
+    Selection.Offset(1, 0).Resize(1, 3).Value = "Grand total"
+    
+    
+   'Setting headers for formulas because they have been overwritten by the macro
+    wsCopyTo.Range("A7").Value = "Entité"
+    wsCopyTo.Range("B7").Value = "Match Tableau"
+    wsCopyTo.Range("C7").Value = "# Groupe"
+    Range("A7:C7").HorizontalAlignment = xlCenter
+    
+    
+'---------------------------------------
+'Formatting Formula columns
+'Formatting table body
+    Range("A7").Select
+    Range("A7", Selection.End(xlDown)).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows - 1, numColumns + 2).Select
+    
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    
+    
+ 'Formatting Last Row (Total row)
+    Range("A7").Select
+    Selection.End(xlDown).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows, numColumns + 2).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Gras"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .Color = 14671839
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+    
+ 'Formatting table header
+    Range("A7").Select
+    Range("A7", Selection.End(xlToRight)).Select
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .Color = 14865087
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Gras"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+  
+    
+    Columns("A:V").EntireColumn.AutoFit
+    
+    'Resetting autofilter
+    
+    If wsCopyTo.AutoFilterMode Then
+        If FilterMode Then wsCopyTo.ShowAllData
+    Else
+        Range("A7").Select
+        Range("A7", Selection.End(xlToRight)).Select
+        Selection.AutoFilter
+    End If
+    
+    
+    'Give names to data ranges
+    Worksheets("FIN-OPE-FC-0020-01").Range("A7").Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    vReport1DataRange = Selection.Address
+    
+    On Error Resume Next
+    If Len(Names("FINOPEFC002001").Name) = 0 Then
+        ActiveWorkbook.Names.Add Name:="FINOPEFC002001", RefersToLocal:="='FIN-OPE-FC-0020-01'!" & vReport1DataRange
+        ActiveWorkbook.Names("FINOPEFC002001").Comment = ""
+        Else
+        ActiveWorkbook.Names("FINOPEFC002001").RefersToLocal = "='FIN-OPE-FC-0020-01'!" & vReport1DataRange
+    End If
+    On Error GoTo 0
+    
+
+    
+    'Close file that was opened
+    wbCopyFrom.Close SaveChanges:=False
+    
+    Application.CutCopyMode = False
+     
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------
+' Second report copy-paste process : FIN-OPE-FC-0020-02
+'-------------------------------------------------------------
+'-------------------------------------------------------------
+' Moving to destination sheet for first report
+
+Worksheets("FIN-OPE-FC-0020-02").Select
+
+'-------------------------------------------------------------
+' Storing the analysis workbook as the destination workbook for the copy-paste process of the first report (FIN-OPE-FC-0020-02)
+Set wbCopyTo = ActiveWorkbook
+Set wsCopyTo = ActiveSheet
+
+
+'Deletes everything from the previous report
+Range("A8:V10000").Select
+
+Selection.ClearContents
+Selection.ClearFormats
+
+    '-------------------------------------------------------------
+    'Open file with data to be copied
+    
+    vFile = Application.GetOpenFilename("Excel Files (*.xl*)," & _
+    "*.xl*", 1, "Sélectionnez FIN-OPE-FC-0020-02 Sommaire des réclamations Caroline du Sud pour " & vCurrentMonth & " " & " " & vCurrentYear, "Open", False)
+    
+    'If Cancel then Exit
+    If TypeName(vFile) = "Boolean" Then
+            vMsgBox = MsgBox("Aucun fichier n'a été fourni." & vbNewLine & "Veuillez démarrer la macro de nouveau" & vbNewLine & "lorsque le fichier sera disponible." _
+            , vbExclamation, "Aucun fichier fourni")
+            wbCopyTo.Activate
+            Worksheets("SETUP").Select
+            Exit Sub
+                        
+        Else
+            Set wbCopyFrom = Workbooks.Open(vFile)
+            Set wsCopyFrom = wbCopyFrom.Worksheets(1)
+        End If
+        
+    If Not wbCopyFrom.Worksheets(1).Range("A4").Value = "Sommaire des réclamations Caroline du Sud" Then
+        vMsgBox = MsgBox("Ceci ne semble pas être le bon rapport." & vbNewLine & "Assurez-vous de fournir le rapport FIN-OPE-FC-0020-02 à cette étape." _
+                , vbExclamation, "Mauvais rapport fourni")
+        wbCopyTo.Activate
+        Worksheets("SETUP").Select
+        Exit Sub
+    End If
+    
+    '--------------------------------------------------------------
+  'Copy Data and cell format from Report
+    wsCopyFrom.Range("A7:F10000").Copy
+    wsCopyTo.Range("D7").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+    wsCopyTo.Range("D7").PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+            Application.CutCopyMode = False
+            
+      
+ 'Setting first headers for upcoming formulas
+    wsCopyTo.Range("A7").Value = "Entité"
+    wsCopyTo.Range("B7").Value = "Match Tableau"
+    wsCopyTo.Range("C7").Value = "# Groupe"
+     Range("A7:C7").HorizontalAlignment = xlCenter
+      
+    
+' Set pasted data in variables in order to paste formulas in the next step.
+   wsCopyTo.Activate
+    Range("D7").Select
+    Selection.End(xlDown).Select
+    vLastRow = Selection.Address
+    
+    Range("A1").Select
+     
+    wsCopyTo.Activate
+    Range("D7").Select
+    Selection.End(xlToRight).Select
+    vLastColumn = Selection.Address
+    
+    Range("A1").Select
+        
+    Range("D7").Select
+    Range("D7", Selection.End(xlDown)).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows - 1, numColumns).Select
+    vFirstPastedColumn = Selection.Address
+    
+    Range("A1").Select
+      
+    Range("A7").Select
+    Range("A7", Selection.End(xlToRight)).Select
+    vFirstPastedRow = Selection.Address
+    
+    
+    'Copy Date from Report (not data!, date!)
+    wsCopyFrom.Range("A5").Copy
+    wsCopyTo.Range("D5").PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+            Application.CutCopyMode = False
+             
+    'Paste matching formulas ahead of the pasted data.
+    wsCopyTo.Activate
+    
+    'Formula entry for entity match
+    Range(vFirstPastedColumn).Offset(0, -3).FormulaR1C1 = _
+        "=IFERROR(VLOOKUP(R[0]C[2],MAPPING_TABLE,6,FALSE),VLOOKUP(LEFT(R[0]C[2],1)*100000,MAPPING_TABLE,6,FALSE))"
+    Range(vFirstPastedColumn).Offset(0, -3).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+        
+        
+       
+    'Formula entry for aggregate sheet match
+    Range(vFirstPastedColumn).Offset(0, -2).FormulaR1C1 = _
+        "=IFERROR(VLOOKUP(R[0]C[1],MAPPING_TABLE,5,FALSE),VLOOKUP(LEFT(R[0]C[1],1)*100000,MAPPING_TABLE,5,FALSE))"
+    Range(vFirstPastedColumn).Offset(0, -2).Select
+    With Selection
+        .HorizontalAlignment = xlLeft
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+     End With
+        
+    
+    'Formula entry for getting group numbers as a number formatted value (prevents issues with edited cell format after import
+    '(Number as text is often wrongly converted to number when edited by Excel or the user)
+     Range(vFirstPastedColumn).Offset(0, -1).FormulaR1C1 = "=VALUE(MID(R[0]C[1],FIND(""("",R[0]C[1])+1,6))"
+    Range(vFirstPastedColumn).Offset(0, -1).Select
+    With Selection
+        .HorizontalAlignment = xlRight
+        .VerticalAlignment = xlTop
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+        .NumberFormat = "0"
+        
+    End With
+            
+    'Adding "Grand total" in the last row, to identify it in the pivot, if needed.
+    Range("A7").Select
+    Selection.End(xlDown).Select
+    Selection.Offset(1, 0).Resize(1, 3).Value = "Grand total"
+       
+       
+   'Setting headers for formulas because they have been overwritten by the macro
+    wsCopyTo.Range("A7").Value = "Entité"
+    wsCopyTo.Range("B7").Value = "Match Tableau"
+    wsCopyTo.Range("C7").Value = "# Groupe"
+
+
+'---------------------------------------
+'Formatting Formula columns
+'Formatting table body
+    Range("A7").Select
+    Range("A7", Selection.End(xlDown)).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows - 1, numColumns + 2).Select
+    
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Normal"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    
+    
+ 'Formatting Last Row (Total row)
+    Range("A7").Select
+    Selection.End(xlDown).Select
+    numRows = Selection.Rows.Count
+    numColumns = Selection.Columns.Count
+    Selection.Resize(numRows, numColumns + 2).Select
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Gras"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -3355444
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .Color = 14671839
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+    
+ 'Formatting table header
+    Range("A7").Select
+    Range("A7", Selection.End(xlToRight)).Select
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = -4945056
+        .TintAndShade = 0
+        .Weight = xlMedium
+    End With
+    Selection.Borders(xlInsideVertical).LineStyle = xlNone
+    Selection.Borders(xlInsideHorizontal).LineStyle = xlNone
+    With Selection.Interior
+        .Pattern = xlSolid
+        .PatternColorIndex = xlAutomatic
+        .Color = 14865087
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    With Selection.Font
+        .Name = "Tahoma"
+        .FontStyle = "Gras"
+        .Size = 8
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontNone
+    End With
+    Range("A7:C7").HorizontalAlignment = xlCenter
+    Columns("A:I").EntireColumn.AutoFit
+    
+    
+    
+    'Close file that was opened
+    wbCopyFrom.Close SaveChanges:=False
+    
+    Application.CutCopyMode = False
+    
+    'Resetting filters
+     If wsCopyTo.AutoFilterMode Then
+        If FilterMode Then wsCopyTo.ShowAllData
+    Else
+        Range("A7").Select
+        Range("A7", Selection.End(xlToRight)).Select
+        Selection.AutoFilter
+    
+    End If
+    
+
+ 'Give names to data ranges
+    Worksheets("FIN-OPE-FC-0020-02").Range("A7").Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    vReport2DataRange = Selection.Address
+    
+    On Error Resume Next
+    If Len(Names("FINOPEFC002002").Name) = 0 Then
+        ActiveWorkbook.Names.Add Name:="FINOPEFC002002", RefersToLocal:=vReport2DataRange
+        ActiveWorkbook.Names("FINOPEFC002002").Comment = ""
+        Else
+        ActiveWorkbook.Names("FINOPEFC002002").RefersToLocal = "='FIN-OPE-FC-0020-02'!" & vReport2DataRange
+    End If
+    On Error GoTo 0
+
+'-------------------------------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------------------------------
+
+'Updates the Pivot table
+On Error Resume Next
+vPivotDataTrim = Mid(ActiveWorkbook.Names("FINOPEFC002002").RefersToR1C1, 2)
+vPivotDataFinal = ActiveWorkbook.Path & "\[" & ActiveWorkbook.Name & "]" & Replace(vPivotDataTrim, "'", "")
+
+Sheets("PIVOT").Select
+    ActiveSheet.PivotTables("PIVOT").ChangePivotCache ActiveWorkbook.PivotCaches. _
+        Create(SourceType:=xlDatabase, SourceData:=vPivotDataFinal _
+        , Version:=xlPivotTableVersion15)
+    ActiveSheet.PivotTables("PIVOT").RefreshTable
+    ActiveSheet.PivotTables("PIVOT").PivotSelect "'# Groupe'[All]", xlLabelOnly, True
+
+With ActiveSheet.PivotTables("PIVOT").PivotFields("Match Tableau")
+        .PivotItems("Grand total").Visible = False
+    End With
+    With ActiveSheet.PivotTables("PIVOT").PivotFields("# Groupe")
+        .PivotItems("Grand total").Visible = False
+    End With
+    
+Sheets("SETUP").Select
+Range("A1").Select
+On Error GoTo 0
+
+End Sub

@@ -1,0 +1,14 @@
+[PPO_MENSUEL].[DATE_TRAITEMENT].[ID] = 'DT' 
+and 
+[PPO_MENSUEL].[PPO_MENSUEL].[DATE_GENERATION] = to_date([PPO_MENSUEL].[DATE_TRAITEMENT].[DATE_TRAITEMENT];'yyyymmdd')
+
+
+[PPO_MENSUEL].[PPO_MENSUEL].[DATE_GENERATION] >= to_date(?Date_Début_Traitement?;'yyyymmdd') And
+[PPO_MENSUEL].[PPO_MENSUEL].[DATE_GENERATION] <= to_date(?Date_Fin_Traitement?;'yyyymmdd')
+
+
+[PPO_MENSUEL].[DATE_TRAITEMENT].[ID] = 'DT'
+and
+_last_of_month(to_date([PPO_MENSUEL].[PPO_MENSUEL].[DATE_GENERATION];'yyyymmdd')) >= _last_of_month(to_date(?Date_Début_Traitement?;'yyyymmdd'))
+and
+_last_of_month(to_date([PPO_MENSUEL].[PPO_MENSUEL].[DATE_GENERATION];'yyyymmdd')) <= _last_of_month(to_date(?Date_Fin_Traitement?;'yyyymmdd'))

@@ -1,0 +1,335 @@
+Option Explicit
+
+Function CognosMerger(ByVal hasFooter As Boolean, ByVal copyTotals As Boolean, ByRef cognosWB As Workbook) As Worksheet
+'Variables de classeurs, feuilles et plages
+Dim cognosWS As Worksheet ' Variable pour chacune des feuilles originales du classeur
+Dim mCell As Range  ' Variable de loop sur les cellules
+Dim mCell2 As Range ' Variable de loop sur les cellules 2
+Dim mCell3 As Range ' Variable de loop sur les cellules 3
+
+'Variables pour la création de la feuille sommaire
+Dim sheetCreationIteration As Integer 'Nombre de tentatives de création d'une feuille sommaire (afin de limiter la boucle s'il est impossible d'en créer une)
+Dim summaryWS As Worksheet ' Feuille sommaire recevant les données des feuilles
+Dim worksheetNameCheck As Boolean 'Sert à vérifier si le nom utilisé pour créer la feuille sommaire est déjà utilisé
+
+'Variables pour la recherche d'entête
+Dim headerRow As Integer 'Stocke la rangée de l'entête lorsque trouvée
+Dim headerRowVector As Integer 'Variable mesurant le nombre de cellules recherchées pour trouver un entête (et arrêter la recherche si le nombre limite est dépassé)
+
+'Variable de statut d'opération
+Dim headerFound As Boolean 'L'entête a été trouvé pour cette feuille
+Dim headerCopiedToSummary As Boolean 'L'entête a été copié dans la feuille sommaire
+Dim parsingDone As Boolean 'La recopie de l'entête a été faite dans les colonnes du début pour cette feuille
+
+'Variables pour les opérations de copie
+Dim headerRowContent As String 'Stocke, pour chaque ligne de l'entête, le contenu de toutes les cellules de cette ligne afin de les recopier dans une colonne
+Dim headerFirstColumn As Integer
+Dim lastRow As Integer ' Dernière rangée trouvée dans cette feuille
+Dim lastColumn As Integer 'dernière colonne trouvée dans cette feuille
+Dim summaryWSRowVector As Integer 'indique quelle rangée, dans la feuille sommaire, sera la suivante à recevoir une copie d'une ligne d'une autre feuille
+
+'Initialisation des variables de comptage et boolean de statut
+sheetCreationIteration = 1
+summaryWSRowVector = 2 '2 car la ligne 1 est réservée à l'entête, lorsque celle-ci est trouvée
+headerCopiedToSummary = False
+worksheetNameCheck = False
+      
+Set cognosWB = ActiveWorkbook
+Set cognosWS = cognosWB.Worksheets(1)
+
+
+Application.ScreenUpdating = False
+
+'UserForm
+CognosMergerForm.currentWorkbookLabel.Caption = cognosWB.Name
+CognosMergerForm.currentSheetLabel.Caption = "En attente"
+CognosMergerForm.currentCellLabel.Caption = "En attente"
+CognosMergerForm.currentTaskLabel.Caption = "Création de la feuille sommaire..."
+CognosMergerForm.Show False
+CognosMergerForm.Repaint
+
+'============================
+'Création de la feuille Sommaire
+cognosWB.Worksheets.Add Before:=Worksheets(1)
+Set summaryWS = cognosWB.Sheets(1)
+On Error GoTo createSheet
+Application.DisplayAlerts = False
+
+cognosWB.Sheets(1).Name = "COGNOSMERGER"
+GoTo createSheetDone
+
+'============================
+'Si erreur dans l'action de nommer la feuille, essayer avec un suffixe numéral itératif.
+createSheet:
+On Error GoTo createSheet
+
+If sheetCreationIteration > 999 Then
+    On Error GoTo 0
+    Application.DisplayAlerts = True
+    Call MsgBox("Le nombre maximal de feuilles CognosMerger a été atteint (999)." & vbNewLine & _
+                "Veuillez en supprimer avant d'en créer des nouvelles, ou changez leurs noms", _
+                vbCritical + vbOKOnly, "Trop de feuilles CognosMerger")
+    End
+    Else
+End If
+
+'Check si le nom de la feuille existe déjà.
+For Each cognosWS In cognosWB.Worksheets
+    If cognosWS.Name = "COGNOSMERGER" & CStr(sheetCreationIteration) Or worksheetNameCheck = True Then
+        worksheetNameCheck = True
+        Exit For
+    Else
+    End If
+Next cognosWS
+
+'Si la feuille n'existe pas, crée la feuille; si elle existe, passe au prochain chiffre suffixe à 'COGNOSMERGER'.
+If worksheetNameCheck = True Then
+    sheetCreationIteration = sheetCreationIteration + 1
+    worksheetNameCheck = False
+    GoTo createSheet
+    
+    Else
+    summaryWS.Name = "COGNOSMERGER" & CStr(sheetCreationIteration)
+    
+End If
+    
+'============================
+createSheetDone:
+Debug.Print "Feuille " & summaryWS.Name & " créée."
+CognosMergerForm.currentTaskLabel.Caption = "Création de la feuille sommaire réussie!"
+CognosMergerForm.Repaint
+
+On Error GoTo 0
+Application.DisplayAlerts = True
+
+'============================
+For Each cognosWS In cognosWB.Worksheets
+    'Mise à 0 des variables uniques à chaque feuille
+    headerRow = 0
+    headerRowVector = 1
+    lastRow = 0
+    lastColumn = 0
+    headerFound = False
+    parsingDone = False
+
+    'UserForm
+    CognosMergerForm.currentSheetLabel.Caption = cognosWS.Name
+    CognosMergerForm.currentTaskLabel.Caption = "Sélection de la prochaine feuille..."
+    CognosMergerForm.Repaint
+
+  
+  
+  'Test pour savoir si la feuille est légitime (contient des données d'un rapport Cognos)
+    If InStr(1, cognosWS.Name, "COGNOSMERGER", vbTextCompare) <> 0 Then
+        Debug.Print "Feuille sommaire sautée, car ne fait pas partie du rapport Cognos"
+        GoTo nextWorksheet
+    Else
+    End If
+    cognosWS.Activate
+    
+    'Check si la feuille est vide
+    If cognosWS.UsedRange.Count = 1 Then
+        Debug.Print "Feuille sautée, car elle semble vide."
+        GoTo nextWorksheet
+    Else
+        'Continue
+    End If
+    
+    'Défusionne toutes les cellules (DEVRAIT INTÉGRER POWERDEFUSER)
+    'UserForm
+    CognosMergerForm.currentTaskLabel.Caption = "Défusion des cellules..."
+    CognosMergerForm.Repaint
+
+    Cells.UnMerge
+    
+    
+    'Trouve la dernière ligne et la stocke dans une variable (utile lors de la copie des lignes une par une).
+    lastRow = cognosWS.UsedRange.Rows.Count
+    lastColumn = cognosWS.UsedRange.Columns.Count
+    
+'============================
+'Trouve la première rangée de l'entête à l'aide des couleurs par défaut des cellules d'entête des rapports Cognos.
+selectNextHeaderStep:
+            
+        'Si l'entête a déjà été copié et que l'entête a déjà été 'parsé dans les colonnes du début alors skip vers la copie des lignes
+        Select Case True
+          
+        Case Not headerFound
+            
+             'Si l 'entête n'est pas trouvé après 25 colonnes, demander si le programme doit continuer avec la prochaine feuille.
+                      
+            
+                    'Trouve l'entête
+                    
+                For Each mCell In cognosWS.Range(cognosWS.Cells(1, headerRowVector), cognosWS.Cells(lastRow, headerRowVector))
+                    CognosMergerForm.currentTaskLabel.Caption = "Recherche de l'entête..."
+                    CognosMergerForm.currentCellLabel.Caption = mCell.Address
+                    CognosMergerForm.Repaint
+
+                    
+                        If mCell.Interior.Color = 14865087 And mCell.Borders.Color = 11832160 Then
+                            'UserForm
+                            CognosMergerForm.currentTaskLabel.Caption = "Entête trouvé!"
+                            CognosMergerForm.Repaint
+                            headerRow = mCell.Row
+                            headerFirstColumn = mCell.Column
+                            headerFound = True
+                            GoTo selectNextHeaderStep
+                        Else
+                        
+                             If Not headerFound And headerRow = 0 And headerRowVector < 25 Then
+                                headerRowVector = headerRowVector + 1
+                                'incrémente la variable de test et continue de chercher une entête dans la colonne suivante
+                            ElseIf Not headerFound And headerRowVector > 25 Then
+                                vMsgBox = MsgBox("L'entête n'a pas été trouvé pour la feuille " & cognosWS.Name & vbNewLine & "Voulez-vous continuer avec la prochaine feuille?", vbYesNo, "Entête non trouvé")
+                                If vMsgBox = 6 Then
+                                    GoTo nextWorksheet
+                                ElseIf vMsgBox = 7 Then
+                                    End
+                                Else
+                                    End
+                                End If
+                            Else
+                            End If
+                        End If
+                    
+                Next mCell
+                GoTo nextWorksheet
+         Case headerFound And Not parsingDone
+            'PARSING PROCEDURE (recopie l'entête dans des colonnes)
+            For Each mCell In cognosWS.Range(Cells(1, headerFirstColumn), Cells(headerRow - 1, headerFirstColumn))
+                    CognosMergerForm.currentTaskLabel.Caption = "Création de colonnes pour les données stockés dans les entêtes..."
+                    CognosMergerForm.Repaint
+
+                    'Insère une nouvelle colonne pour stocker les informations contenues dans l'entête.
+                    cognosWS.Columns(headerFirstColumn).Insert
+                    'TRÈS IMPORTANT --> \/  \/  \/
+                    headerFirstColumn = headerFirstColumn + 1 'Mets à jour la première colonne des données originales, puisqu'on vient d'en insérer une autre
+                    lastColumn = lastColumn + 1         ' Et fait de même avec la variable contenant le numéro de la dernière colonne
+                    cognosWS.Cells(headerRow, headerFirstColumn - 1).Value = "Entête, ligne " & CStr(mCell.Row)
+                    
+                    For Each mCell2 In cognosWS.Range(Cells(mCell.Row, headerFirstColumn), Cells(mCell.Row, lastColumn))
+                        CognosMergerForm.currentTaskLabel.Caption = "Stockage des données contenues dans l'entête..."
+                        CognosMergerForm.currentCellLabel.Caption = mCell2.Address
+                        CognosMergerForm.Repaint
+
+                        'Concatène les informations de la ligne d'entête en cours.
+                        If Not IsEmpty(mCell2.Value) Then
+                            headerRowContent = headerRowContent & " " & CStr(mCell2.Value)
+                        Else
+                        End If
+                        'Insertion des données dans la première cellule de la colonne, sous l'entête.
+                    Next mCell2
+                    '
+                    cognosWS.Range(Cells(headerRow + 1, headerFirstColumn - 1), Cells(lastRow, headerFirstColumn - 1)).Value = headerRowContent
+                    headerRowContent = ""
+                Next mCell
+                
+                parsingDone = True
+                GoTo selectNextHeaderStep
+
+       
+        
+        Case headerFound And Not headerCopiedToSummary And parsingDone
+                'Recopie de l'entête dans la feuille sommaire si ça n'a pas encore été fait (ne se produit qu'une seulle fois avec la feuille 1)
+                CognosMergerForm.currentTaskLabel.Caption = "Recopie de l'entête dans la feuille sommaire..."
+                    CognosMergerForm.Repaint
+
+                
+                'Copie de l'entête
+                    cognosWS.Range(cognosWS.Cells(headerRow, 1), cognosWS.Cells(headerRow, lastColumn)).Copy
+                'Colle l'entête dans la feuille sommaire
+                    summaryWS.Cells(1, 1).PasteSpecial xlPasteAll
+                    headerCopiedToSummary = True
+                    GoTo selectNextHeaderStep
+                    
+                    
+       
+        Case headerFound And headerCopiedToSummary And parsingDone
+            'Commence la procédure de recopie des lignes
+            
+        Case Else
+           
+        End Select
+        
+        
+'===================================
+copyRows:
+CognosMergerForm.currentTaskLabel.Caption = "Recopie des lignes dans une feuille sommaire..."
+'Itère sur les lignes de données pour recopier les lignes valides
+For Each mCell In cognosWS.Range(cognosWS.Cells(headerRow + 1, headerRow), cognosWS.Cells(lastRow, headerRow))
+cognosWS.Activate
+    
+    CognosMergerForm.currentCellLabel.Caption = "Ligne # " & mCell.Row
+    CognosMergerForm.Repaint
+
+    'Analyse quel genre de ligne il s'agit
+    Select Case True
+    
+        Case Not (copyTotals) And hasFooter
+            Select Case True
+                Case mCell.Row = lastRow _
+                Or mCell.Interior.Color = 15856114 Or mCell.Interior.Color = 14671839 _
+                Or mCell.Offset(0, 1).Interior.Color = 15856114 Or mCell.Offset(0, 1).Interior.Color = 14671839 _
+                Or mCell.Offset(0, 2).Interior.Color = 15856114 Or mCell.Offset(0, 2).Interior.Color = 14671839
+                'Skip cette ligne, cette ligne est grise, soit la couleur des totaux dans Cognos, ou encore il s'agit de la dernière ligne,
+                'soit la ligne de pieds de page.
+                    GoTo nextLine
+                Case Else
+                    cognosWS.Range(Cells(mCell.Row, 1), Cells(mCell.Row, lastColumn)).Select
+                    GoTo copyLine
+            End Select
+            
+            
+        Case Not (copyTotals) And Not (hasFooter)
+            Select Case True
+                Case mCell.Interior.Color = 15856114 Or mCell.Interior.Color = 14671839 _
+                Or mCell.Offset(0, 1).Interior.Color = 15856114 Or mCell.Offset(0, 1).Interior.Color = 14671839 _
+                Or mCell.Offset(0, 2).Interior.Color = 15856114 Or mCell.Offset(0, 2).Interior.Color = 14671839
+                'Skip cette ligne, cette ligne est grise, soit la couleur des totaux dans Cognos
+                    GoTo nextLine
+                Case Else
+                    cognosWS.Range(Cells(mCell.Row, 1), Cells(mCell.Row, lastColumn)).Select
+                    GoTo copyLine
+            End Select
+            
+        Case copyTotals And Not (hasFooter)
+            'Skip this analysis
+            cognosWS.Range(Cells(mCell.Row, 1), Cells(mCell.Row, lastColumn)).Select
+            GoTo copyLine
+        
+        Case copyTotals And hasFooter
+            Select Case True
+                Case mCell.Row = lastRow
+                'Skip cette ligne car il s'agit de la dernière ligne, soit la ligne de pieds de page.
+                    GoTo nextLine
+                Case Else
+                    cognosWS.Range(Cells(mCell.Row, 1), Cells(mCell.Row, lastColumn)).Select
+                    GoTo copyLine
+            End Select
+        Case Else
+            Call MsgBox("Les options n'ont pas été définies", vbCritical + vbOKOnly, "Options non définies")
+            End
+    End Select
+GoTo nextWorksheet
+
+
+copyLine:
+    Selection.Copy
+    summaryWS.Cells(summaryWSRowVector, 1).PasteSpecial xlPasteAll
+    Application.CutCopyMode = False
+    summaryWSRowVector = summaryWSRowVector + 1
+    
+nextLine:
+Next mCell
+
+nextWorksheet:
+
+DoEvents
+Next cognosWS
+
+CognosMergerForm.Hide
+Application.ScreenUpdating = True
+Set CognosMerger = summaryWS
+End Function
+

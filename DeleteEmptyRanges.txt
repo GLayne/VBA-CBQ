@@ -1,0 +1,65 @@
+
+Function DeleteEmptyRanges(vWorksheet As Worksheet, TrueifSearchByColumnFalseifSearchByRow As Boolean, LoopLimit As Double)
+'Scans Worksheets to find empty columns and deletes them in order to update pivot tables
+'Dependencies  GetRealLastCell Function  Code is right below 
+''DO NOT UNCOMMENT THIS 
+'Public Function GetRealLastCell(gWorksheet As Worksheet) As Range
+'  Dim lRealLastRow As Long
+'  Dim lRealLastColumn As Long
+'  Dim currentWorksheet As Worksheet
+'  Dim currentRange As Range
+'  Set currentWorksheet = ActiveSheet
+'  Set currentRange = Selection
+'  gWorksheet.Select
+'  Range(A1).Select
+'  On Error Resume Next
+'  lRealLastRow = gWorksheet.Cells.Find(, Range(A1), xlFormulas, , xlByRows, xlPrevious).Row
+'  lRealLastColumn = gWorksheet.Cells.Find(, Range(A1), xlFormulas, , xlByColumns, xlPrevious).Column
+'  currentWorksheet.Select
+'  currentRange.Select
+'  Set GetRealLastCell = gWorksheet.Cells(lRealLastRow, lRealLastColumn)
+'End Function
+'DO NOT UNCOMMENT THIS 
+'IF FUNCTION GETREALLASTCELL CANNOT BE FOUND, COPY ABOVE CODE INTO A NEW FUNCTION ELSEWHERE IN THIS MODULE.
+Dim vLastUsedCell As Range
+Dim vLastUsedCellRow As Double
+Dim vLastUsedCellColumn As Double
+Dim LoopCounter As Double
+LoopCounter = 0
+
+WorksheetDeleteEmptyColumnsStart
+vWorksheet.Select
+Set vLastUsedCell = GetRealLastCell(vWorksheet)
+vLastUsedCellRow = vLastUsedCell.Row
+vLastUsedCellColumn = vLastUsedCell.Column
+
+Select Case True
+Case TrueifSearchByColumnFalseifSearchByRow
+        For Each iCell In ActiveSheet.Range(Cells(1, 1), Cells(1, vLastUsedCellColumn))
+            LoopCounter = LoopCounter + 1
+            
+            If WorksheetFunction.CountBlank(Range(Cells(1, iCell.Column), Cells(vLastUsedCellRow, iCell.Column))) = vLastUsedCellRow _
+                And Range(Cells(1, iCell.Column), Cells(vLastUsedCellRow, iCell.Column)).HasFormula = False Then
+                       iCell.EntireColumn.Delete
+                       GoTo WorksheetDeleteEmptyColumnsStart
+            Else
+            End If
+        Next iCell
+    
+Case Not TrueifSearchByColumnFalseifSearchByRow
+        For Each iCell In ActiveSheet.Range(Cells(1, 1), Cells(vLastUsedCellRow, 1))
+            LoopCounter = LoopCounter + 1
+            
+            If WorksheetFunction.CountBlank(Range(Cells(iCell.Row, 1), Cells(iCell.Row, vLastUsedCellColumn))) = vLastUsedCellColumn _
+               And Range(Cells(iCell.Row, 1), Cells(iCell.Row, vLastUsedCellColumn)).HasFormula = False Then
+                   iCell.EntireRow.Delete
+                   GoTo WorksheetDeleteEmptyColumnsStart
+            Else
+            End If
+        Next iCell
+End Select
+If LoopCounter  LoopLimit Then
+Exit Function
+End If
+DoEvents
+End Function

@@ -1,0 +1,61 @@
+Private Function FindHeaderRowUnivers(ByVal vWorksheet As Worksheet, ByVal numberOfColumns As Integer, Optional maxRowToLookup As Integer) As Integer
+'===================
+'Cette fonction tente de trouver la ligne d'entête d'un rapport en évaluant colonne par colonne où se situe la première cellule avec du contenu.
+'À partir de là, la ligne qui revient le plus souvent sera considérée comme étant le meilleur guess.
+'Une vérification est faite à la fin pour s'assurer que la plupart des colonnes de cette ligne ont une valeur (le titre de la colonne).
+'===================
+Dim verticalVectorCell As Range
+Dim horizontalVectorCell As Range
+Dim headerSet() As Integer
+ReDim headerSet(1 To numberOfColumns) As Integer
+Dim dictRowNumberCount As Dictionary
+Dim dictKey As Variant
+Dim arrayCounter As Integer
+Dim currentScore As Integer
+Dim bestScore As Integer
+Dim bestScoreRow As Integer
+
+If maxRowToLookup = 0 Then
+    maxRowToLookup = 20
+End If
+
+For Each horizontalVectorCell In vWorksheet.Range(Cells(1, 1), Cells(1, numberOfColumns))
+    For Each verticalVectorCell In vWorksheet.Range(Cells(1, horizontalVectorCell.Column), Cells(maxRowToLookup, horizontalVectorCell.Column))
+        If Not verticalVectorCell.MergeCells And verticalVectorCell.Value <> "" Then
+            headerSet(horizontalVectorCell.Column) = verticalVectorCell.Row
+            Exit For
+        Else
+        End If
+    Next verticalVectorCell
+Next horizontalVectorCell
+
+
+'Décompte des scores
+Set dictRowNumberCount = New Dictionary
+For arrayCounter = LBound(headerSet) To UBound(headerSet)
+    currentScore = 1
+    'Si la collection d'occurences ne contient pas une valeur d'occurence pour la ligne visée, crée cette paire valeur d'occurence/ligne visée dans la collection
+    If Not dictRowNumberCount.Exists(headerSet(arrayCounter)) Then
+        dictRowNumberCount.Add headerSet(arrayCounter), 1
+    
+    'Si la collection d'occurence contient déjà la valeur d'occurence pour la ligne visée, incrémente cette valeur d'occurence de 1 (pas le choix de supprimer
+    'et de recréer la ligne visée dans la collection (impossible de modifier un élément d'une collection VBA, seulement Add et Remove)
+    ElseIf dictRowNumberCount.Exists(headerSet(arrayCounter)) Then
+        currentScore = dictRowNumberCount(headerSet(arrayCounter))
+        currentScore = currentScore + 1
+        dictRowNumberCount.Remove (headerSet(arrayCounter))
+        dictRowNumberCount.Add headerSet(arrayCounter), currentScore
+    End If
+Next
+
+'Boucle sur les éléments de la collection afin de trouver la ligne visée avec le plus d'occurences.
+bestScore = 1
+For Each dictKey In dictRowNumberCount.Keys
+    If dictKey > bestScore Then
+        bestScore = dictRowNumberCount.Item(dictKey)
+        bestScoreRow = dictKey
+    End If
+Next dictKey
+
+FindHeaderRowUnivers = bestScoreRow
+End Function

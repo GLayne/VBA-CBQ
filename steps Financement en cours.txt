@@ -1,0 +1,6 @@
+Unshare
+Création Backup
+Merge des données de Financement en cours (va chercher Rapport Cognos "Select_Data")
+Prend le rapport des Rejets et les intègre, + lookup du courant (1 fois par semaine)
+MAJ Rapport Floride + lookup dans rapport Floride
+

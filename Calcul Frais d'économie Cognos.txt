@@ -1,0 +1,26 @@
+if (?p_devise? = 'CAD') 
+then (if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+         then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE])
+         else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100;2))
+) else (if ([VSTCDSC]='F')
+            then(if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+          then ([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE])
+          else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100;2))
+)
+else(
+if ([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] = 0)
+          then (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VST_MIN_ECONOMIE] / [VST_TAUX_USA];2))
+          else (_round([XC4DTAV_GDG].[XC4DTAV_GDG].[VSTMTECO] * [XC4DTAV_GDG].[XC4DTAV_GDG].[VSTPCECO] / 100 / [XC4DTAV_GDG].[XC4DTAV_GDG].[VST_TAUX_USA];2))
+))
+
+
+
+Autrement dit :
+
+Si la devise entrée au début est en CAD, alors
+
+	Si le montant d'économie est 0$, alors égale le minimum des frais d'économie  (si applicable, j'imagine)
+	
+	Sinon, multiplie l'arrondi du montant d'économie parle pourcentage d'économie / 100
+
+		

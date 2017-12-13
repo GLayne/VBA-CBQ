@@ -1,0 +1,262 @@
+Option Explicit
+Public sourceWB As Workbook
+Public sourceWS As Worksheet
+Public destinationWB As Workbook
+Public destinationWS As Worksheet
+Public destinationWBN As String
+Public vFile As Variant
+Public vFileArray() As Integer
+Public nbfichiers As Integer
+Public iFile As Variant
+Public vMsgBox As Integer
+Public askSheetWS As String
+Public askSheetArray() As String
+Public iSheet As Variant
+Public i As Integer
+Public selectedSheet As String
+Public reclamationsSheet As String
+Public primesSheet As String
+Public icell As Range
+
+
+Public Sub rapatriateAssuranceCreancierData()
+
+Set destinationWB = ThisWorkbook
+Set destinationWS = ActiveSheet
+
+destinationWBN = ActiveWorkbook.Name
+
+
+nbfichiers = InputBox("Combien de fichiers voulez-vous importer?", "Nombre de fichiers à importer", 0)
+If Not TypeName(nbfichiers) = "Integer" Or nbfichiers = 0 Then
+    vMsgBox = MsgBox("Erreur : vous devez entrer un nombre entier.", vbOKOnly, "Nombre entier nécessaire")
+    End
+Else
+AskForFileInput (nbfichiers)
+End If
+vMsgBox = MsgBox("Work complete", vbOKOnly, "Work complete")
+
+End Sub
+
+
+Public Function AskForFileInput(nbfichiers As Integer)
+
+ReDim vFileArray(nbfichiers)
+Erase askSheetArray
+For Each iFile In vFileArray
+
+'Demande le fichier
+vFile = Application.GetOpenFilename("Excel Files (*.xl*)," & _
+    "*.xl*", 1, "Sélectionnez un fichier", "Open", False)
+    
+    'Termine la macro si aucun fichier fourni
+    If TypeName(vFile) = "Boolean" Then
+            vMsgBox = MsgBox("Aucun fichier n'a été fourni." & vbNewLine & "Veuillez démarrer la macro de nouveau" & vbNewLine & "lorsque le fichier sera disponible." _
+            , vbExclamation, "Aucun fichier fourni")
+            destinationWB.Activate
+            End
+    End If
+
+
+'Ouvre le fichier spécifié
+Set sourceWB = Workbooks.Open(vFile)
+
+sourceWB.Activate
+ReDim askSheetArray(sourceWB.Sheets.Count)
+'Stocke les noms de feuilles dans une array
+For i = 1 To sourceWB.Sheets.Count
+askSheetArray(i) = sourceWB.Sheets(i).Name
+Next i
+
+'Envoie les noms de feuille dans la boîte de sélection de feuille
+For i = 1 To sourceWB.Sheets.Count
+askSheetForm.ListBox1.AddItem askSheetArray(i)
+Next i
+
+
+With askSheetForm
+    .StartUpPosition = 0
+    .Left = Application.Left + (0.5 * Application.Width) - (0.5 * .Width)
+    .Top = Application.Top + (0.5 * Application.Height) - (0.5 * .Height)
+End With
+
+'Demande la feuille des primes
+askSheetForm.Label1.Caption = "Choisissez la feuille contenant les données de : Primes"
+primesNotSelected:
+
+
+SheetSelectFunction
+
+primesSheet = selectedSheet
+
+selectedSheet = ""
+
+
+Application.Wait (Now() + TimeSerial(0, 0, 1))
+
+'Demande la feuille des réclamations
+askSheetForm.Label1.Caption = "Choisissez la feuille contenant les données de : Réclamations"
+reclamationsNotSelected:
+
+SheetSelectFunction
+
+reclamationsSheet = selectedSheet
+
+selectedSheet = ""
+askSheetForm.Hide
+
+askSheetForm.ListBox1.Clear
+
+
+
+'Observe l'exactitude des colonnes - PRIMES
+Workbooks(destinationWBN).Activate
+Set destinationWB = Workbooks(destinationWBN)
+Set destinationWS = destinationWB.Worksheets("PRIMES")
+Set sourceWS = sourceWB.Worksheets(primesSheet)
+sourceWB.Activate
+sourceWS.Select
+For Each icell In Range("A3", Cells(3, Range("ZZ4").End(xlToLeft).Column).Address).Cells
+    If icell.Value <> destinationWS.Range(icell.Address).Value Then
+        vMsgBox = MsgBox("Mismatch des colonnes sur colonne " & icell.Column & vbNewLine & "Voulez-vous quand même importer la colonne?" _
+                & "Colonne Source : " & icell.Value & vbNewLine & "Colonne Destination : " & destinationWS.Range(icell.Address).Value, vbYesNo, "Mismatch")
+        If vMsgBox = 7 Then
+            End
+        Else
+        End If
+    Else
+    End If
+Next icell
+
+
+'Observe l'exactitude des colonnes - RÉCLAMATIONS
+Workbooks(destinationWBN).Activate
+Set destinationWB = Workbooks(destinationWBN)
+Set destinationWS = destinationWB.Worksheets("RÉCLAMATIONS")
+Set sourceWS = sourceWB.Worksheets(reclamationsSheet)
+sourceWB.Activate
+sourceWS.Select
+For Each icell In Range("A1", Cells(1, Range("AAA1").End(xlToLeft).Column).Address)
+    If icell.Value <> destinationWS.Range(icell.Address).Value Then
+        vMsgBox = MsgBox("Mismatch des colonnes sur colonne " & icell.Column & vbNewLine & "Voulez-vous quand même importer la colonne?" _
+                & "Colonne Source : " & icell.Value & vbNewLine & "Colonne Destination : " & destinationWS.Range(icell.Address).Value, vbYesNo, "Mismatch")
+        If vMsgBox = 7 Then
+            End
+        Else
+        End If
+    Else
+    End If
+Next icell
+
+
+'Copy-paste procedure  - PRIMES
+destinationWB.Activate
+destinationWB.Worksheets("PRIMES").Select
+Set destinationWS = destinationWB.Worksheets("PRIMES")
+    
+    sourceWB.Activate
+    sourceWS.Select
+    Range("A4", Cells(Range("A10000").End(xlUp).Row, Range("ZZ4").End(xlToLeft).Column)).Select
+    Selection.Copy
+    
+    
+      destinationWB.Activate
+      destinationWS.Select
+      If destinationWS.Range("A3").Row = Range("A100000").End(xlUp).Row Then
+            Range("A4").Select
+        Else
+            destinationWS.Range("A4").End(xlDown).Offset(1, 0).Select
+        End If
+    
+    
+    With Selection
+        .PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+            
+        .PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+            SkipBlanks:=False, Transpose:=False
+    End With
+            
+    Application.CutCopyMode = False
+    
+    
+'Copy-paste procedure  - RÉCLAMATIONS
+destinationWB.Activate
+destinationWB.Worksheets("RÉCLAMATIONS").Select
+Set destinationWS = destinationWB.Worksheets("RÉCLAMATIONS")
+
+    sourceWB.Activate
+    sourceWS.Select
+    Range("A1", Cells(Range("A10000").End(xlUp).Row, Range("ZZ1").End(xlToLeft).Column)).Select
+    Selection.Copy
+    
+      destinationWB.Activate
+      destinationWS.Select
+      If destinationWS.Range("A1").Row = Range("A100000").End(xlUp).Row Then
+            Range("A2").Select
+        Else
+            destinationWS.Range("A2").End(xlDown).Offset(1, 0).Select
+        End If
+    
+    
+    With Selection
+        .PasteSpecial Paste:=xlPasteValues, _
+            Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+            
+        .PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+            SkipBlanks:=False, Transpose:=False
+    End With
+            
+    Application.CutCopyMode = False
+    
+Next iFile
+
+AskForFileInput = True
+End Function
+
+
+Public Function SheetSelectFunction()
+askSheetForm.Show
+askSheetFormTest:
+If askSheetForm.State = True Then
+SheetSelectFunction = True
+    askSheetForm.Hide
+    Exit Function
+Else
+    GoTo askSheetFormTest
+End If
+
+End Function
+
+
+
+=====================================
+CODE DANS LE BOUTON
+=====================================
+
+Private bOK As Boolean
+ 
+Public Property Get State() As Boolean
+    State = bOK
+End Property
+ 
+Private Sub button_Annuler_Click()
+askSheetForm.Hide
+End
+End Sub
+
+Private Sub Button_Selectionner_Click()
+Dim listItem As Integer
+For listItem = 0 To ListBox1.ListCount - 1
+    If ListBox1.Selected(listItem) Then
+        selectedSheet = ListBox1.List(listItem)
+    End If
+Next listItem
+
+bOK = True
+askSheetForm.Hide
+End Sub
+
+
+
+

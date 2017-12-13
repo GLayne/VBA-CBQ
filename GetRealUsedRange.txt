@@ -1,0 +1,3 @@
+Function GetRealUsedRange(vWorksheet As Worksheet) As Range
+Set GetRealUsedRange = vWorksheet.Range(vWorksheet.Cells(1, 1), vWorksheet.Cells(GetRealLastCell(vWorksheet).Row, GetRealLastCell(vWorksheet).Column))
+End Function
